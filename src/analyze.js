@@ -90,7 +90,7 @@ function collectTenGods(chart) {
     }
   }
 
-  return { visible, hidden, all: [...visible, ...hidden] };
+  return { visible, hidden };
 }
 
 function countGods(list, names) {
@@ -103,9 +103,15 @@ function scoreGods(visibleCount, hiddenCount, visibleWeight = 2, hiddenWeight = 
 
 function strengthRank(status) {
   if (!status) return 0;
+  if (status.includes('极强') || status.includes('专旺')) return 3;
   if (status.includes('旺') || status.includes('强')) return 2;
+  if (status.includes('极弱')) return -3;
   if (status.includes('弱')) return -2;
-  if (status.includes('中和') || status.includes('平衡')) return 0;
+  if (status.includes('中和') || status.includes('平衡') || status.includes('偏弱') || status.includes('偏强')) {
+    if (status.includes('偏弱')) return -1;
+    if (status.includes('偏强')) return 1;
+    return 0;
+  }
   return 0;
 }
 
@@ -130,11 +136,11 @@ function buildFinale(gender, orientation, isDeepCloset) {
 }
 
 /**
- * 算法原则：
- * 1. 一个信号尽量只服务一个主轴，避免重复计分
- * 2. 双性恋只能由“异性缘证据 + 破格证据”同时成立推出，不能由常见命盘结构直接给分
- * 3. 藏干弱信号不能当主证据
- * 4. 阴阳日主、普通桃花只作辅助，不作主判
+ * 证据分层：
+ * - 主证据：能单独推动结论方向
+ * - 辅证据：只在已有主证据时加码
+ * - 双性恋：必须左右两边都有独立主证据
+ * - 从格/极弱：配偶星不能按正格“成势”解读
  */
 export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, personNameValue) {
   const { year, month, day } = parseBirthDate(birthDateValue);
@@ -160,6 +166,7 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   const strengthStatus = chart.analysis?.dayMasterStrength?.status || '';
   const strength = strengthRank(strengthStatus);
   const pattern = chart.analysis?.mingGe?.pattern || '';
+  const hasStrongRoot = Boolean(chart.analysis?.dayMasterStrength?.details?.hasStrongRoot);
 
   const { visible, hidden } = collectTenGods(chart);
   const shenshaList = flattenShensha(chart.shensha);
@@ -167,10 +174,10 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   const hasGuLuan = peachTags.some((item) => item.includes('孤鸾'));
   const hasHongLuanOrTianXi = peachTags.some((item) => item === '红鸾' || item === '天喜');
   const desireTags = peachTags.filter((t) => ['桃花', '咸池', '沐浴'].includes(t));
-  const hasDesireShenSha = desireTags.length > 0;
 
   const peachPillars = PILLAR_KEYS.filter((key) => PEACH_BRANCHES.has(pillars[key].zhi));
   const nonDayPeachCount = peachPillars.filter((key) => key !== 'day').length;
+  const totalPeachCount = peachPillars.length;
   const dayIsPeach = PEACH_BRANCHES.has(dayBranch);
   const muYuPillars = PILLAR_KEYS.filter((key) => chart.lifeStages?.[key] === '沐浴');
   const dayIsMuYu = chart.lifeStages?.day === '沐浴';
@@ -193,26 +200,36 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   const peerScore = scoreGods(peerVisible, peerHidden, 2, 1);
   const printScore = scoreGods(printVisible, printHidden, 2, 1);
 
-  // 配偶星：男财女官；透干权重大，藏干只作补充
+  // 配偶星：男财女官。主证据必须看透干，藏干只补气。
   const spouseVisible = gender === 'male' ? wealthVisible : officerVisible;
   const spouseHidden = gender === 'male' ? wealthHidden : officerHidden;
   const spouseScore = gender === 'male' ? wealthScore : officerScore;
   const nonSpouseVisible = gender === 'male' ? officerVisible : wealthVisible;
-  const nonSpouseScore = gender === 'male' ? officerScore : wealthScore;
 
-  // 从格/极弱时，传统配偶星不能按普通正格“成势”解读；普通身弱不在此列
   const isCongPattern = /从/.test(pattern) || strengthStatus.includes('从');
   const isExtremeWeak = strengthStatus.includes('极弱');
   const selfUnstable = isCongPattern || isExtremeWeak;
 
-  // 配偶星“成势”：至少一透，或透藏合计够实；从格下大幅降权
-  const spouseStrongRaw = spouseVisible >= 2 || (spouseVisible >= 1 && spouseScore >= 4) || spouseScore >= 6;
-  const spousePresentRaw = spouseVisible >= 1 || spouseScore >= 3;
+  // 正格配偶星门槛：
+  // - 成势：至少一透，且总量够
+  // - 有气：至少一透；或虽不透但格局本身就是配偶星格局
+  // - 仅藏干：不算主证据，也不能直接当全虚
+  const spousePatternAligned = gender === 'male'
+    ? /正财|偏财|财/.test(pattern)
+    : /正官|七杀|官|杀/.test(pattern);
+  const spouseStrongRaw = spouseVisible >= 2 || (spouseVisible >= 1 && spouseScore >= 4);
+  const spousePresentRaw =
+    spouseVisible >= 1
+    || (spousePatternAligned && spouseScore >= 2)
+    || (spouseVisible === 0 && spouseScore >= 5 && spouseHidden >= 2);
   const spouseStrong = spouseStrongRaw && !selfUnstable;
-  const spousePresent = selfUnstable ? spouseVisible >= 1 && spouseScore >= 5 : spousePresentRaw;
-  const spouseWeak = (!spousePresent) || (selfUnstable && !spouseStrongRaw);
+  const spousePresent = selfUnstable
+    ? spouseVisible >= 2 || (spouseVisible >= 1 && spouseScore >= 6)
+    : spousePresentRaw;
+  // 全虚：无透、无格局支撑、藏干也弱
+  const spouseWeak = spouseVisible === 0 && !spousePatternAligned && spouseScore <= 2;
+  const spouseHiddenOnly = spouseVisible === 0 && !spouseWeak && !spousePresent;
 
-  // 破格类“藏而不透”：只统计比劫/食伤这类更偏自我与表达的信号
   const breakHidden = countGods(hidden, ['比肩', '劫财', '食神', '伤官']);
   const breakVisible = countGods(visible, ['比肩', '劫财', '食神', '伤官']);
 
@@ -229,6 +246,7 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   const heteroFacts = [];
   const queerFacts = [];
   const supportFacts = [];
+  const queerMainFlags = [];
 
   // ---------- 异性缘主证据 ----------
   if (spouseStrong) {
@@ -238,10 +256,32 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
         ? `妻星（财星）成势：透干 ${wealthVisible}，合计 ${wealthScore}。`
         : `夫星（官杀）成势：透干 ${officerVisible}，合计 ${officerScore}。`,
     );
+  } else if (spousePresent && !selfUnstable) {
+    heteroScore += 3;
+    if (spouseVisible >= 1) {
+      heteroFacts.push(
+        gender === 'male'
+          ? '妻星透干有气，传统异性缘成立。'
+          : '夫星透干有气，传统异性缘成立。',
+      );
+    } else if (spousePatternAligned) {
+      heteroFacts.push(
+        gender === 'male'
+          ? `格局为“${pattern}”，妻星是盘面主结构，传统异性缘成立。`
+          : `格局为“${pattern}”，夫星是盘面主结构，传统异性缘成立。`,
+      );
+    } else {
+      heteroFacts.push(
+        gender === 'male'
+          ? '妻星虽不透但根气足够，传统异性缘仍可成立。'
+          : '夫星虽不透但根气足够，传统异性缘仍可成立。',
+      );
+    }
   } else if (spouseStrongRaw && selfUnstable) {
-    // 从格/极弱时官杀或财星多，更像身不自立，不能直接当异性缘成势
+    // 从格/极弱：官杀或财星再多，也不能直接当正格配偶成势
     heteroScore += 1;
     queerScore += 2;
+    queerMainFlags.push('cong-spouse-reframe');
     heteroFacts.push(
       gender === 'male'
         ? `虽见财星（透干 ${wealthVisible}，合计 ${wealthScore}），但日主从格/极弱，不能按普通妻星成势看。`
@@ -250,108 +290,135 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
     queerFacts.push(
       isCongPattern
         ? `格局为“${pattern || '从格'}”，日主难自立，传统婚恋主证据要改判。`
-        : `日主${strengthStatus || '偏弱'}，传统配偶星再多也难当正格异性缘。`,
-    );
-  } else if (spousePresent) {
-    heteroScore += 3;
-    heteroFacts.push(
-      gender === 'male'
-        ? '妻星有根有气，传统异性缘成立。'
-        : '夫星有根有气，传统异性缘成立。',
+        : `日主${strengthStatus || '极弱'}，传统配偶星再多也难当正格异性缘。`,
     );
   } else if (spouseWeak) {
-    queerScore += 3;
+    queerScore += 2;
+    queerMainFlags.push('spouse-weak');
     queerFacts.push(
       gender === 'male'
         ? '妻星偏虚，传统异性配偶主证据不足。'
         : '夫星偏虚，传统异性配偶主证据不足。',
     );
+  } else if (spouseHiddenOnly) {
+    // 有藏无透：异性缘未废，但也不算主证据
+    heteroScore += 1;
+    supportFacts.push(
+      gender === 'male'
+        ? '妻星只见藏干，异性缘有底气但未透清。'
+        : '夫星只见藏干，异性缘有底气但未透清。',
+    );
   }
 
-  if (hasHongLuanOrTianXi) {
+  if (hasHongLuanOrTianXi && spousePresent && !selfUnstable) {
     heteroScore += 2;
     heteroFacts.push('见红鸾/天喜，正缘框架仍在。');
+  } else if (hasHongLuanOrTianXi) {
+    heteroScore += 1;
+    supportFacts.push('见红鸾/天喜，作常规叙事辅助，不单独定案。');
   }
 
-  if (pattern && /正财|偏财|正官|七杀|财/.test(pattern) && spousePresent) {
+  if (pattern && /正财|偏财|正官|七杀|财/.test(pattern) && spousePresent && !selfUnstable) {
     heteroScore += 1;
     heteroFacts.push(`格局“${pattern}”与配偶星方向一致。`);
   }
 
-  if (strength >= 2 && spousePresent) {
+  if (strength >= 2 && spousePresent && !selfUnstable) {
     heteroScore += 1;
     heteroFacts.push(`日主${strengthStatus || '偏强'}并见配偶星，常规婚恋底盘更稳。`);
   }
 
-  // ---------- 破格主证据（只计一次，不跨轴重复） ----------
+  // ---------- 破格主证据 ----------
   if (hasGuLuan) {
     queerScore += 4;
+    queerMainFlags.push('guluan');
     queerFacts.push('见孤鸾煞，感情路径更易偏离常例。');
   }
 
+  // 桃花：日支、总量、神煞分层，避免同一现象重复计分
   if (dayIsPeach) {
     queerScore += 2;
+    queerMainFlags.push('day-peach');
     queerFacts.push(`日支落桃花地支“${dayBranch}”，夫妻宫本身带欲望波动。`);
   }
-  if (nonDayPeachCount >= 3) {
+  if (totalPeachCount >= 3) {
     queerScore += 3;
-    queerFacts.push(`年/月/时桃花地支多达 ${nonDayPeachCount} 处，欲望结构明显偏离平稳。`);
-  } else if (nonDayPeachCount === 2) {
+    queerMainFlags.push('multi-peach');
+    queerFacts.push(`四柱桃花地支多达 ${totalPeachCount} 处，欲望结构明显偏离平稳。`);
+  } else if (nonDayPeachCount >= 2 && !dayIsPeach) {
     queerScore += 2;
+    queerMainFlags.push('multi-peach');
     queerFacts.push(`年/月/时出现 ${nonDayPeachCount} 处桃花地支，欲望线索偏活跃。`);
   } else if (nonDayPeachCount === 1 && !dayIsPeach) {
     queerScore += 1;
     supportFacts.push('另有一处桃花地支，作辅助波动信号。');
   }
 
-  // 神煞神煞与日柱沐浴避免重复：日柱沐浴已单计时，不再因“沐浴”关键字再加
-  if (hasDesireShenSha) {
-    const tags = desireTags.filter((t) => !(dayIsMuYu && t === '沐浴'));
-    if (tags.length > 0) {
-      queerScore += Math.min(2, tags.length);
-      queerFacts.push(`命盘见${tags.join('、')}，情欲表达更容易破格。`);
-    }
+  // 神煞神煞：与日支桃花/日柱沐浴去重，避免“地支桃花 + 桃花神煞”双计
+  const desireMainTags = desireTags.filter((t) => {
+    if (dayIsMuYu && t === '沐浴') return false;
+    if (dayIsPeach && t === '桃花') return false;
+    return true;
+  });
+  if (desireMainTags.length > 0) {
+    queerScore += Math.min(2, desireMainTags.length);
+    queerMainFlags.push('desire-shensha');
+    queerFacts.push(`命盘见${desireMainTags.join('、')}，情欲表达更容易破格。`);
   }
 
   if (dayIsMuYu) {
     queerScore += 2;
+    queerMainFlags.push('day-muyu');
     queerFacts.push('日柱处“沐浴”，色欲与情感敏感度升高。');
   } else if (nonDayMuYuCount >= 2) {
     queerScore += 1;
     supportFacts.push(`另有 ${nonDayMuYuCount} 处沐浴，欲望波动偏频繁。`);
   }
 
-  // 非配偶星显而配偶星不透：只在配偶弱时成立，避免正常命盘误伤
-  if (spouseWeak && nonSpouseVisible > 0) {
+  // 非配偶星压过配偶星：要求配偶几乎无透无气，且非配偶星足够显
+  if (spouseWeak && !spousePatternAligned && nonSpouseVisible >= 2) {
     queerScore += 2;
+    queerMainFlags.push('non-spouse-over');
     queerFacts.push(
       gender === 'male'
-        ? '官杀显而妻星不透，气机更偏同类掌控结构。'
-        : '财星显而夫星不透，气机更偏自我欲望表达。',
+        ? '官杀明显透出而妻星近乎全虚，气机更偏同类掌控结构。'
+        : '财星明显透出而夫星近乎全虚，气机更偏自我欲望表达。',
+    );
+  } else if (spouseWeak && !spousePatternAligned && nonSpouseVisible === 1) {
+    supportFacts.push(
+      gender === 'male'
+        ? '官杀有透、妻星偏虚，作辅助结构信号。'
+        : '财星有透、夫星偏虚，作辅助结构信号。',
     );
   }
 
-  if (peerVisible >= 2 || peerScore >= 5) {
+  // 比劫：必须真的重，不能 1 透 + 几藏就当主证据
+  const peerHeavy = peerVisible >= 2 || (peerVisible >= 1 && peerScore >= 6) || peerScore >= 8;
+  if (peerHeavy) {
     queerScore += 2;
-    queerFacts.push(`比劫偏重（透干 ${peerVisible}），对同类牵引更强。`);
+    queerMainFlags.push('peer-heavy');
+    queerFacts.push(`比劫偏重（透干 ${peerVisible}，合计 ${peerScore}），对同类牵引更强。`);
+  } else if (peerVisible >= 1 && spouseWeak) {
+    supportFacts.push('比劫有透，但未成重局，只作辅助。');
   }
 
-  if (strength <= -2 && spouseWeak) {
+  // 身弱/格局/冲刑：只能辅助，且不能与从格改判重复叠太多
+  if (!selfUnstable && strength <= -2 && spouseWeak) {
     queerScore += 1;
-    queerFacts.push(`日主${strengthStatus || '偏弱'}且配偶星不厚，常规婚恋主证据更难压住破格信号。`);
+    supportFacts.push(`日主${strengthStatus || '偏弱'}且配偶星不厚，常规主证据更难压住破格信号。`);
   }
 
-  if (pattern && /伤官|食神|比劫|建禄|月劫/.test(pattern) && spouseWeak) {
+  if (!selfUnstable && pattern && /伤官|食神|比劫|建禄|月劫/.test(pattern) && spouseWeak) {
     queerScore += 1;
-    queerFacts.push(`格局偏“${pattern}”，再叠加配偶星偏虚，破格倾向更明确。`);
+    supportFacts.push(`格局偏“${pattern}”，再叠加配偶星偏虚，破格倾向更明确。`);
   }
 
   if (hasDaySpouseClash && spouseWeak) {
     queerScore += 1;
-    queerFacts.push('夫妻宫冲刑且配偶星偏虚，感情结构更不稳定。');
+    supportFacts.push('夫妻宫冲刑且配偶星偏虚，感情结构更不稳定。');
   }
 
-  // 阴阳日主只作弱辅助，不单独成局
+  // 阴阳日主：纯辅助
   if (gender === 'male' && dayMasterYin && queerScore > 0) {
     queerScore += 1;
     supportFacts.push('男命日主偏阴，使既有破格信号略增重。');
@@ -361,42 +428,55 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
     supportFacts.push('女命日主偏阳，使既有破格信号略增重。');
   }
 
-  // ---------- 双性恋：必须两边都有“独立主证据” ----------
-  // 不能因为命盘常见的财官藏干并见，就直接给双
-  const multiPeach = dayIsPeach || nonDayPeachCount >= 2 || (nonDayPeachCount + (dayIsPeach ? 1 : 0)) >= 3;
-  const heteroCore = heteroScore >= 4 && spousePresent && !selfUnstable;
-  const queerCore = queerScore >= 5 && (
+  // ---------- 主证据核 ----------
+  // 异性缘主核：正格下配偶星真正有气/成势
+  const heteroCore = !selfUnstable && spousePresent && heteroScore >= 4;
+
+  // 破格主核：
+  // - 强硬核：孤鸾、从格改判、比劫成重、三桃花
+  // - 中硬核：日支桃花、日柱沐浴、欲望神煞
+  // 不能只靠身弱/冲刑/阴阳凑分
+  const strongHardQueer =
     hasGuLuan
-    || spouseWeak
-    || dayIsPeach
+    || peerHeavy
+    || totalPeachCount >= 3
+    || (selfUnstable && (totalPeachCount >= 2 || spouseStrongRaw));
+  const mediumHardQueer =
+    dayIsPeach
     || dayIsMuYu
-    || peerVisible >= 2
-    || (multiPeach && selfUnstable)
-    || (nonDayPeachCount >= 3)
+    || desireMainTags.length > 0
+    || queerMainFlags.includes('non-spouse-over');
+  const hasHardQueer = strongHardQueer || mediumHardQueer;
+
+  // 强硬核：5 分可成核；仅中硬核：需要 6 分，防止“一点桃花就翻盘”
+  const queerCore = hasHardQueer && (
+    (strongHardQueer && queerScore >= 5)
+    || (mediumHardQueer && queerScore >= 6)
+    || (selfUnstable && totalPeachCount >= 3 && queerScore >= 4)
   );
   const bothSidesReal = heteroCore && queerCore;
 
+  // ---------- 取向裁决 ----------
   let orientation = 'straight';
   if (bothSidesReal) {
     orientation = 'bi';
-  } else if (queerCore && queerScore >= heteroScore + 1 && queerScore >= 5) {
+  } else if (queerCore && !heteroCore) {
     orientation = 'gay';
-  } else if (queerCore && selfUnstable && !heteroCore && queerScore >= 5) {
-    // 从格/极弱时，不能再用“官杀多=异性缘”压过破格主证据
+  } else if (queerCore && heteroCore && queerScore >= heteroScore + 2) {
+    // 两边都有核，但破格明显更强：仍归同性恋，而不是勉强双
     orientation = 'gay';
-  } else if (heteroCore && heteroScore >= queerScore + 1) {
+  } else if (heteroCore && heteroScore >= queerScore) {
     orientation = 'straight';
-  } else if (heteroScore >= queerScore + 2 && heteroScore >= 4) {
+  } else if (!queerCore && heteroScore >= 3) {
     orientation = 'straight';
-  } else if (queerScore >= 7 && !heteroCore) {
+  } else if (queerCore) {
     orientation = 'gay';
   } else {
-    // 证据胶着：有正格配偶主证据则从常规，否则看破格是否成核
-    orientation = heteroCore ? 'straight' : (queerCore ? 'gay' : 'straight');
+    orientation = 'straight';
   }
 
-  // ---------- 深柜：只有非直盘才谈 ----------
-  // 柜 = 破格成立 + 表达被压 + 外表仍可维持常规
+  // ---------- 深柜 ----------
+  // 只有非直盘才谈；需要“破格成立 + 表达被压 + 外表可维持常规”
   let closetScore = 0;
   const closetFacts = [];
   const openFacts = [];
@@ -422,12 +502,14 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
     closetFacts.push(`比劫/食伤多藏不透（藏 ${breakHidden} / 透 ${breakVisible}），破格更像压在里面。`);
   }
 
-  if (spousePresent && orientation !== 'straight') {
+  // 外表可装常规：正格配偶有气，或红鸾天喜
+  const surfaceMask = (!selfUnstable && spousePresent) || hasHongLuanOrTianXi;
+  if (surfaceMask && orientation !== 'straight') {
     closetScore += 2;
     closetFacts.push(
-      gender === 'male'
-        ? '表面仍有妻星可支撑“常规叙事”。'
-        : '表面仍有夫星可支撑“常规叙事”。',
+      hasHongLuanOrTianXi
+        ? '红鸾/天喜仍可撑住常规恋爱叙事。'
+        : (gender === 'male' ? '表面仍有妻星可支撑“常规叙事”。' : '表面仍有夫星可支撑“常规叙事”。'),
     );
   }
 
@@ -436,17 +518,10 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
     closetFacts.push(dayMasterYin ? '日主偏阴，气机更内收。' : `日主${strengthStatus}，更习惯把锋芒收回。`);
   }
 
-  if (hasHongLuanOrTianXi && orientation !== 'straight') {
-    closetScore += 1;
-    closetFacts.push('红鸾/天喜仍可撑住常规恋爱叙事。');
-  }
-
   let isDeepCloset = false;
   if (orientation !== 'straight') {
-    // 需要“收着”和“还能装常规”两边都在
     const suppressed = printScore >= 2 || outputVisible === 0 || breakHidden > breakVisible;
-    const masked = spousePresent || hasHongLuanOrTianXi;
-    isDeepCloset = closetScore >= 6 && suppressed && masked;
+    isDeepCloset = closetScore >= 6 && suppressed && surfaceMask;
   }
 
   // ---------- 0/1 ----------
@@ -472,15 +547,15 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   }
 
   if (officerScore > 0) {
-    activeScore += Math.min(3, officerScore);
+    activeScore += Math.min(3, Math.ceil(officerScore / 2));
     activeFacts.push(`官杀合计 ${officerScore}，掌控欲上调。`);
   }
   if (peerScore > 0) {
-    activeScore += Math.min(2, peerScore);
+    activeScore += Math.min(2, Math.ceil(peerScore / 3));
     activeFacts.push(`比劫合计 ${peerScore}，自我主张更强。`);
   }
   if (wealthScore > 0) {
-    passiveScore += Math.min(3, wealthScore);
+    passiveScore += Math.min(3, Math.ceil(wealthScore / 2));
     passiveFacts.push(`财星合计 ${wealthScore}，更偏被吸引与承纳。`);
   }
   if (outputVisible > 0 && officerVisible === 0) {
@@ -512,6 +587,8 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
     factReasons.push(...heteroFacts.slice(0, 3));
     if (queerFacts[0]) {
       factReasons.push(queerFacts[0].replace(/。$/, '，但还构不成主证据翻盘。'));
+    } else if (supportFacts[0] && supportFacts[0].includes('桃花')) {
+      factReasons.push(supportFacts[0].replace(/。$/, '，但还构不成主证据翻盘。'));
     }
     if (factReasons.length === 0) {
       factReasons.push('配偶星与破格信号都不够成局，整体更接近常规取向。');
@@ -523,7 +600,7 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   } else {
     factReasons.push(...queerFacts.slice(0, 4));
     if (supportFacts[0]) factReasons.push(supportFacts[0]);
-    if (heteroFacts[0] && spousePresent) {
+    if (heteroFacts[0] && spousePresent && !selfUnstable) {
       factReasons.push(heteroFacts[0].replace(/。$/, '，但破格主证据更强。'));
     }
     conclusionReasons.push(
@@ -606,6 +683,11 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
       heteroCore,
       queerCore,
       bothSidesReal,
+      hasHardQueer,
+      strongHardQueer,
+      mediumHardQueer,
+      hasStrongRoot,
+      spouseHiddenOnly,
     },
   };
 }
