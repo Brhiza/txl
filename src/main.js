@@ -130,9 +130,16 @@ function clearForm() {
   timeIndexInput.value = '6';
 }
 
+function scrollToTop() {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+
 function showFormOnly() {
   form.hidden = false;
   resultEl.hidden = true;
+  scrollToTop();
   resultEl.classList.remove('has-metrics');
   errorEl.hidden = true;
   errorEl.textContent = '';
@@ -161,6 +168,7 @@ function showResultOnly(data) {
   errorEl.hidden = true;
   errorEl.textContent = '';
   latestResult = data;
+  scrollToTop();
 
   const showMetrics = data.orientation !== 'straight';
   metricsEl.hidden = !showMetrics;
