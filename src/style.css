@@ -262,13 +262,28 @@ button.ghost {
     font-size: 1.7rem;
   }
 
-  .result-grid,
+  .result-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .result-card {
+    gap: 0.3rem;
+    padding: 0.7rem 0.45rem;
+    text-align: center;
+  }
+
   .result-actions {
     grid-template-columns: 1fr;
   }
 
+  .label {
+    font-size: 0.78rem;
+  }
+
   .value {
-    font-size: 1.3rem;
+    font-size: 1.05rem;
+    word-break: break-word;
   }
 
   .finale {
@@ -282,4 +297,5 @@ button.ghost {
   font-weight: 700;
   line-height: 1.3;
 }
+
 
