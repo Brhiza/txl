@@ -387,7 +387,7 @@ async function buildResultImage(data) {
 
   ctx.fillStyle = '#6f6558';
   ctx.font = '24px "Microsoft YaHei", "PingFang SC", sans-serif';
-  ctx.fillText('扫码再测一次', padding, qrY + 40);
+  ctx.fillText('你是不是同性恋？', padding, qrY + 40);
   ctx.fillStyle = '#8a3d2f';
   ctx.font = 'bold 30px "Microsoft YaHei", "PingFang SC", sans-serif';
   ctx.fillText(SITE_URL, padding, qrY + 88);
@@ -496,31 +496,35 @@ saveImageBtn.addEventListener('click', async () => {
   }
 });
 
-copyLinkBtn.addEventListener('click', async () => {
-  if (!latestResult) {
-    showError('请先完成一次测试');
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
     return;
   }
 
+  const input = document.createElement('input');
+  input.value = text;
+  input.setAttribute('readonly', 'readonly');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.appendChild(input);
+  input.select();
+  input.setSelectionRange(0, input.value.length);
+  const ok = document.execCommand('copy');
+  document.body.removeChild(input);
+  if (!ok) throw new Error('复制失败');
+}
+
+copyLinkBtn.addEventListener('click', async () => {
   try {
-    // 确保当前结果已写进 URL
-    writeUrlState(
-      {
-        name: latestResult.personName,
-        gender: latestResult.gender,
-        birthDate: latestResult.birthDate,
-        timeIndex: latestResult.timeIndex,
-      },
-      true,
-    );
-    await copyCurrentLink();
+    await copyText(SITE_URL);
     const original = copyLinkBtn.textContent;
     copyLinkBtn.textContent = '已复制';
     window.setTimeout(() => {
       copyLinkBtn.textContent = original;
     }, 1500);
   } catch (error) {
-    showError(error instanceof Error ? error.message : '复制链接失败');
+    showError(error instanceof Error ? error.message : '分享链接失败');
   }
 });
 
