@@ -356,10 +356,6 @@ function buildResultImage(data) {
     }
   }
 
-  ctx.fillStyle = '#8a7a68';
-  ctx.font = '22px "Microsoft YaHei", "PingFang SC", sans-serif';
-  ctx.fillText('娱乐向八字速断 · sydf.cc', padding, height - 58);
-
   return canvas;
 }
 
