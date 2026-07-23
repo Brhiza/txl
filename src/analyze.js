@@ -200,10 +200,17 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   const nonSpouseVisible = gender === 'male' ? officerVisible : wealthVisible;
   const nonSpouseScore = gender === 'male' ? officerScore : wealthScore;
 
-  // 配偶星“成势”：至少一透，或透藏合计够实
-  const spouseStrong = spouseVisible >= 2 || (spouseVisible >= 1 && spouseScore >= 4) || spouseScore >= 6;
-  const spousePresent = spouseVisible >= 1 || spouseScore >= 3;
-  const spouseWeak = spouseVisible === 0 && spouseScore <= 2;
+  // 从格/极弱时，传统配偶星不能按普通正格“成势”解读；普通身弱不在此列
+  const isCongPattern = /从/.test(pattern) || strengthStatus.includes('从');
+  const isExtremeWeak = strengthStatus.includes('极弱');
+  const selfUnstable = isCongPattern || isExtremeWeak;
+
+  // 配偶星“成势”：至少一透，或透藏合计够实；从格下大幅降权
+  const spouseStrongRaw = spouseVisible >= 2 || (spouseVisible >= 1 && spouseScore >= 4) || spouseScore >= 6;
+  const spousePresentRaw = spouseVisible >= 1 || spouseScore >= 3;
+  const spouseStrong = spouseStrongRaw && !selfUnstable;
+  const spousePresent = selfUnstable ? spouseVisible >= 1 && spouseScore >= 5 : spousePresentRaw;
+  const spouseWeak = (!spousePresent) || (selfUnstable && !spouseStrongRaw);
 
   // 破格类“藏而不透”：只统计比劫/食伤这类更偏自我与表达的信号
   const breakHidden = countGods(hidden, ['比肩', '劫财', '食神', '伤官']);
@@ -230,6 +237,20 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
       gender === 'male'
         ? `妻星（财星）成势：透干 ${wealthVisible}，合计 ${wealthScore}。`
         : `夫星（官杀）成势：透干 ${officerVisible}，合计 ${officerScore}。`,
+    );
+  } else if (spouseStrongRaw && selfUnstable) {
+    // 从格/极弱时官杀或财星多，更像身不自立，不能直接当异性缘成势
+    heteroScore += 1;
+    queerScore += 2;
+    heteroFacts.push(
+      gender === 'male'
+        ? `虽见财星（透干 ${wealthVisible}，合计 ${wealthScore}），但日主从格/极弱，不能按普通妻星成势看。`
+        : `虽见官杀（透干 ${officerVisible}，合计 ${officerScore}），但日主从格/极弱，不能按普通夫星成势看。`,
+    );
+    queerFacts.push(
+      isCongPattern
+        ? `格局为“${pattern || '从格'}”，日主难自立，传统婚恋主证据要改判。`
+        : `日主${strengthStatus || '偏弱'}，传统配偶星再多也难当正格异性缘。`,
     );
   } else if (spousePresent) {
     heteroScore += 3;
@@ -271,10 +292,14 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
   if (dayIsPeach) {
     queerScore += 2;
     queerFacts.push(`日支落桃花地支“${dayBranch}”，夫妻宫本身带欲望波动。`);
-  } else if (nonDayPeachCount >= 2) {
+  }
+  if (nonDayPeachCount >= 3) {
+    queerScore += 3;
+    queerFacts.push(`年/月/时桃花地支多达 ${nonDayPeachCount} 处，欲望结构明显偏离平稳。`);
+  } else if (nonDayPeachCount === 2) {
     queerScore += 2;
     queerFacts.push(`年/月/时出现 ${nonDayPeachCount} 处桃花地支，欲望线索偏活跃。`);
-  } else if (nonDayPeachCount === 1) {
+  } else if (nonDayPeachCount === 1 && !dayIsPeach) {
     queerScore += 1;
     supportFacts.push('另有一处桃花地支，作辅助波动信号。');
   }
@@ -338,22 +363,36 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
 
   // ---------- 双性恋：必须两边都有“独立主证据” ----------
   // 不能因为命盘常见的财官藏干并见，就直接给双
-  const heteroCore = heteroScore >= 4 && spousePresent;
-  const queerCore = queerScore >= 5 && (hasGuLuan || spouseWeak || dayIsPeach || dayIsMuYu || peerVisible >= 2);
+  const multiPeach = dayIsPeach || nonDayPeachCount >= 2 || (nonDayPeachCount + (dayIsPeach ? 1 : 0)) >= 3;
+  const heteroCore = heteroScore >= 4 && spousePresent && !selfUnstable;
+  const queerCore = queerScore >= 5 && (
+    hasGuLuan
+    || spouseWeak
+    || dayIsPeach
+    || dayIsMuYu
+    || peerVisible >= 2
+    || (multiPeach && selfUnstable)
+    || (nonDayPeachCount >= 3)
+  );
   const bothSidesReal = heteroCore && queerCore;
 
   let orientation = 'straight';
   if (bothSidesReal) {
     orientation = 'bi';
-  } else if (queerScore >= heteroScore + 2 && queerScore >= 5) {
+  } else if (queerCore && queerScore >= heteroScore + 1 && queerScore >= 5) {
     orientation = 'gay';
-  } else if (heteroScore >= queerScore + 1 && heteroScore >= 3) {
+  } else if (queerCore && selfUnstable && !heteroCore && queerScore >= 5) {
+    // 从格/极弱时，不能再用“官杀多=异性缘”压过破格主证据
+    orientation = 'gay';
+  } else if (heteroCore && heteroScore >= queerScore + 1) {
     orientation = 'straight';
-  } else if (queerScore >= 7 && !spousePresent) {
+  } else if (heteroScore >= queerScore + 2 && heteroScore >= 4) {
+    orientation = 'straight';
+  } else if (queerScore >= 7 && !heteroCore) {
     orientation = 'gay';
   } else {
-    // 证据胶着时，以是否具备配偶星主证据为准
-    orientation = spousePresent ? 'straight' : queerScore >= 5 ? 'gay' : 'straight';
+    // 证据胶着：有正格配偶主证据则从常规，否则看破格是否成核
+    orientation = heteroCore ? 'straight' : (queerCore ? 'gay' : 'straight');
   }
 
   // ---------- 深柜：只有非直盘才谈 ----------
@@ -563,6 +602,7 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, 
       spouseStrong,
       spousePresent,
       spouseWeak,
+      selfUnstable,
       heteroCore,
       queerCore,
       bothSidesReal,
