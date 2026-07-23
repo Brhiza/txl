@@ -16,6 +16,7 @@ const finaleEl = document.getElementById('finale');
 const errorEl = document.getElementById('error');
 const againBtn = document.getElementById('again');
 const saveImageBtn = document.getElementById('saveImage');
+const copyLinkBtn = document.getElementById('copyLink');
 
 let latestResult = null;
 
@@ -24,10 +25,65 @@ function getSelectedGender() {
   return checked ? checked.value : '';
 }
 
+function setSelectedGender(gender) {
+  const target = form.querySelector(`input[name="gender"][value="${gender}"]`);
+  if (target) target.checked = true;
+}
+
+function readQueryState() {
+  const params = new URLSearchParams(window.location.search);
+  const name = (params.get('n') || params.get('name') || '').trim();
+  const gender = (params.get('g') || params.get('gender') || '').trim();
+  const birthDate = (params.get('d') || params.get('date') || '').trim();
+  const timeIndex = (params.get('t') || params.get('time') || '').trim();
+
+  return {
+    name,
+    gender: gender === 'female' ? 'female' : gender === 'male' ? 'male' : '',
+    birthDate,
+    timeIndex,
+  };
+}
+
+function buildQueryState({ name, gender, birthDate, timeIndex }) {
+  const params = new URLSearchParams();
+  if (name) params.set('n', name);
+  if (gender) params.set('g', gender);
+  if (birthDate) params.set('d', birthDate);
+  if (timeIndex !== '' && timeIndex !== null && timeIndex !== undefined) {
+    params.set('t', String(timeIndex));
+  }
+  return params;
+}
+
+function writeUrlState(state, replace = true) {
+  const params = buildQueryState(state);
+  const query = params.toString();
+  const nextUrl = query
+    ? `${window.location.pathname}?${query}`
+    : window.location.pathname;
+
+  if (replace) {
+    window.history.replaceState({}, '', nextUrl);
+  } else {
+    window.history.pushState({}, '', nextUrl);
+  }
+}
+
+function clearUrlState() {
+  writeUrlState({}, true);
+}
+
+function fillFormFromState(state) {
+  if (state.name) personNameInput.value = state.name;
+  if (state.gender) setSelectedGender(state.gender);
+  if (state.birthDate) birthDateInput.value = state.birthDate;
+  if (state.timeIndex !== '') timeIndexInput.value = String(state.timeIndex);
+}
+
 function clearForm() {
   form.reset();
-  const male = form.querySelector('input[name="gender"][value="male"]');
-  if (male) male.checked = true;
+  setSelectedGender('male');
   personNameInput.value = '';
   birthDateInput.value = '';
   timeIndexInput.value = '6';
@@ -97,6 +153,25 @@ function showResultOnly(data) {
     finaleEl.hidden = true;
     finaleEl.textContent = '';
   }
+}
+
+function runAnalysis({ name, gender, birthDate, timeIndex }, { updateUrl = true } = {}) {
+  const data = analyzeOrientation(birthDate, timeIndex, gender, name);
+  showResultOnly(data);
+
+  if (updateUrl) {
+    writeUrlState(
+      {
+        name: data.personName,
+        gender: data.gender,
+        birthDate: data.birthDate,
+        timeIndex: data.timeIndex,
+      },
+      true,
+    );
+  }
+
+  return data;
 }
 
 function wrapText(ctx, text, maxWidth) {
@@ -295,19 +370,64 @@ function downloadCanvas(canvas, filename) {
   link.click();
 }
 
-showFormOnly();
+async function copyCurrentLink() {
+  const url = window.location.href;
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(url);
+    return;
+  }
+
+  const input = document.createElement('input');
+  input.value = url;
+  input.setAttribute('readonly', 'readonly');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.appendChild(input);
+  input.select();
+  input.setSelectionRange(0, input.value.length);
+  const ok = document.execCommand('copy');
+  document.body.removeChild(input);
+  if (!ok) throw new Error('复制失败');
+}
+
+function bootstrapFromUrl() {
+  const state = readQueryState();
+  const hasAny = Boolean(state.name || state.gender || state.birthDate || state.timeIndex !== '');
+  if (!hasAny) {
+    showFormOnly();
+    return;
+  }
+
+  fillFormFromState(state);
+
+  const complete =
+    state.name &&
+    state.gender &&
+    state.birthDate &&
+    state.timeIndex !== '';
+
+  if (!complete) {
+    showFormOnly();
+    return;
+  }
+
+  try {
+    runAnalysis(state, { updateUrl: true });
+  } catch (error) {
+    showError(error instanceof Error ? error.message : '链接参数无效');
+  }
+}
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
   try {
-    const data = analyzeOrientation(
-      birthDateInput.value,
-      timeIndexInput.value,
-      getSelectedGender(),
-      personNameInput.value,
-    );
-    showResultOnly(data);
+    runAnalysis({
+      name: personNameInput.value,
+      gender: getSelectedGender(),
+      birthDate: birthDateInput.value,
+      timeIndex: timeIndexInput.value,
+    });
   } catch (error) {
     showError(error instanceof Error ? error.message : '计算失败');
   }
@@ -315,6 +435,7 @@ form.addEventListener('submit', (event) => {
 
 againBtn.addEventListener('click', () => {
   clearForm();
+  clearUrlState();
   showFormOnly();
   personNameInput.focus();
 });
@@ -333,3 +454,37 @@ saveImageBtn.addEventListener('click', () => {
     showError(error instanceof Error ? error.message : '保存图片失败');
   }
 });
+
+copyLinkBtn.addEventListener('click', async () => {
+  if (!latestResult) {
+    showError('请先完成一次测试');
+    return;
+  }
+
+  try {
+    // 确保当前结果已写进 URL
+    writeUrlState(
+      {
+        name: latestResult.personName,
+        gender: latestResult.gender,
+        birthDate: latestResult.birthDate,
+        timeIndex: latestResult.timeIndex,
+      },
+      true,
+    );
+    await copyCurrentLink();
+    const original = copyLinkBtn.textContent;
+    copyLinkBtn.textContent = '已复制';
+    window.setTimeout(() => {
+      copyLinkBtn.textContent = original;
+    }, 1500);
+  } catch (error) {
+    showError(error instanceof Error ? error.message : '复制链接失败');
+  }
+});
+
+window.addEventListener('popstate', () => {
+  bootstrapFromUrl();
+});
+
+bootstrapFromUrl();
