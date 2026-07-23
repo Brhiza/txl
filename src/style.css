@@ -1,0 +1,268 @@
+:root {
+  color-scheme: light;
+  --bg: #efe8dc;
+  --ink: #1c1814;
+  --muted: #6f6558;
+  --panel: #fffaf2;
+  --line: #d8ccb8;
+  --accent: #8a3d2f;
+  --accent-soft: #f3e2d8;
+  --accent-ink: #fff8f4;
+  --error: #9b1c1c;
+  --shadow: 0 18px 40px rgba(74, 52, 32, 0.08);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top right, rgba(138, 61, 47, 0.12), transparent 26%),
+    radial-gradient(circle at left center, rgba(74, 96, 78, 0.08), transparent 24%),
+    linear-gradient(180deg, #f6f0e6 0%, var(--bg) 100%);
+  color: var(--ink);
+}
+
+.app {
+  width: min(100% - 2rem, 34rem);
+  margin: 0 auto;
+  padding: 10vh 0 4rem;
+}
+
+.hero {
+  margin-bottom: 1.1rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.panel,
+.result {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.field > span {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.segment {
+  position: relative;
+}
+
+.segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segment span {
+  display: grid;
+  place-items: center;
+  min-height: 3rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.segment input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+input[type='date'],
+select {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+button {
+  min-height: 3rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--line);
+}
+
+.result {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.result-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.value {
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.meta-block {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.result.has-metrics .meta-block {
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.reason-block {
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.detail {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.92rem;
+}
+
+.reason-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.reasons {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.55rem;
+  color: var(--ink);
+  line-height: 1.55;
+  font-size: 0.94rem;
+}
+
+.finale {
+  margin: 0.2rem 0 0;
+  padding: 1rem 0.2rem 0.2rem;
+  border-top: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+
+.error {
+  margin-top: 1rem;
+  color: var(--error);
+}
+
+@media (max-width: 520px) {
+  .app {
+    padding-top: 6vh;
+  }
+
+  h1 {
+    font-size: 1.7rem;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .value {
+    font-size: 1.3rem;
+  }
+
+  .finale {
+    font-size: 1.3rem;
+  }
+}
+.footer {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.footer a {
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.footer a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}

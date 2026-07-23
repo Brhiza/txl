@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>你是不是同性恋？</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="hero">
+        <h1>你是不是同性恋？</h1>
+      </header>
+
+      <form id="form" class="panel" autocomplete="off">
+        <label class="field">
+          <span>性别</span>
+          <div class="segmented" role="radiogroup" aria-label="性别">
+            <label class="segment">
+              <input type="radio" name="gender" value="male" checked />
+              <span>男</span>
+            </label>
+            <label class="segment">
+              <input type="radio" name="gender" value="female" />
+              <span>女</span>
+            </label>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>出生日期</span>
+          <input id="birthDate" name="birthDate" type="date" required min="1900-01-01" max="2100-12-31" />
+        </label>
+
+        <label class="field">
+          <span>出生时辰</span>
+          <select id="timeIndex" name="timeIndex" required>
+            <option value="0">早子时 23:00-00:59</option>
+            <option value="1">丑时 01:00-02:59</option>
+            <option value="2">寅时 03:00-04:59</option>
+            <option value="3">卯时 05:00-06:59</option>
+            <option value="4">辰时 07:00-08:59</option>
+            <option value="5">巳时 09:00-10:59</option>
+            <option value="6" selected>午时 11:00-12:59</option>
+            <option value="7">未时 13:00-14:59</option>
+            <option value="8">申时 15:00-16:59</option>
+            <option value="9">酉时 17:00-18:59</option>
+            <option value="10">戌时 19:00-20:59</option>
+            <option value="11">亥时 21:00-22:59</option>
+            <option value="12">晚子时 23:00-00:59</option>
+          </select>
+        </label>
+
+        <button type="submit">查看结果</button>
+      </form>
+
+      <section id="result" class="result" hidden>
+        <div id="metrics" class="result-grid">
+          <div class="result-card">
+            <span class="label">取向</span>
+            <strong id="orientationAnswer" class="value"></strong>
+          </div>
+          <div class="result-card">
+            <span class="label">0 还是 1</span>
+            <strong id="roleAnswer" class="value"></strong>
+          </div>
+          <div class="result-card">
+            <span class="label">深柜</span>
+            <strong id="closetAnswer" class="value"></strong>
+          </div>
+        </div>
+
+        <div class="meta-block">
+          <p id="detail" class="detail"></p>
+        </div>
+
+        <div class="reason-block">
+          <p class="reason-title">判定理由</p>
+          <ul id="reasons" class="reasons"></ul>
+        </div>
+
+        <p id="finale" class="finale" hidden></p>
+
+        <button id="again" type="button" class="ghost">再测一次</button>
+      </section>
+
+      <p id="error" class="error" hidden></p>
+
+      <footer class="footer">
+        <a href="https://sydf.cc" target="_blank" rel="noopener noreferrer">更多测试</a>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
