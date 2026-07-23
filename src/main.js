@@ -428,8 +428,6 @@ async function buildResultImage(data) {
   drawRoundRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12);
   ctx.fillStyle = '#fffaf2';
   ctx.fill();
-  ctx.strokeStyle = '#d8ccb8';
-  ctx.stroke();
   ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
   ctx.fillStyle = '#6f6558';
