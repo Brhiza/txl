@@ -13,7 +13,8 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "mingyu-core": "^0.1.22"
+    "mingyu-core": "^0.1.22",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "vite": "^8.1.5"

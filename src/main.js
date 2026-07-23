@@ -1,4 +1,5 @@
 import { analyzeOrientation } from './analyze.js';
+import QRCode from 'qrcode';
 
 const form = document.getElementById('form');
 const personNameInput = document.getElementById('personName');
@@ -19,6 +20,7 @@ const saveImageBtn = document.getElementById('saveImage');
 const copyLinkBtn = document.getElementById('copyLink');
 
 let latestResult = null;
+const SITE_URL = 'https://txl.sydf.cc';
 
 function getSelectedGender() {
   const checked = form.querySelector('input[name="gender"]:checked');
@@ -212,7 +214,7 @@ function safeFileName(name) {
   return cleaned || '未命名';
 }
 
-function buildResultImage(data) {
+async function buildResultImage(data) {
   const width = 1080;
   const padding = 56;
   const contentWidth = width - padding * 2;
@@ -242,8 +244,8 @@ function buildResultImage(data) {
   height += 70;
   height += reasonLines.length * 42 + 24;
   if (finaleLines.length) height += finaleLines.length * 62 + 40;
-  height += 90;
-  height = Math.max(height, 860);
+  height += 220;
+  height = Math.max(height, 980);
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -356,7 +358,50 @@ function buildResultImage(data) {
     }
   }
 
+  // 底部测试链接 + 二维码
+  y += 24;
+  ctx.strokeStyle = '#d8ccb8';
+  ctx.beginPath();
+  ctx.moveTo(padding, y);
+  ctx.lineTo(width - padding, y);
+  ctx.stroke();
+
+  const qrSize = 132;
+  const qrX = width - padding - qrSize;
+  const qrY = y + 28;
+  const qrDataUrl = await QRCode.toDataURL(SITE_URL, {
+    margin: 1,
+    width: qrSize,
+    color: {
+      dark: '#1c1814',
+      light: '#fffaf2',
+    },
+  });
+  const qrImage = await loadImage(qrDataUrl);
+  drawRoundRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12);
+  ctx.fillStyle = '#fffaf2';
+  ctx.fill();
+  ctx.strokeStyle = '#d8ccb8';
+  ctx.stroke();
+  ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+  ctx.fillStyle = '#6f6558';
+  ctx.font = '24px "Microsoft YaHei", "PingFang SC", sans-serif';
+  ctx.fillText('扫码再测一次', padding, qrY + 40);
+  ctx.fillStyle = '#8a3d2f';
+  ctx.font = 'bold 30px "Microsoft YaHei", "PingFang SC", sans-serif';
+  ctx.fillText(SITE_URL, padding, qrY + 88);
+
   return canvas;
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('二维码生成失败'));
+    img.src = src;
+  });
 }
 
 function downloadCanvas(canvas, filename) {
@@ -436,14 +481,14 @@ againBtn.addEventListener('click', () => {
   personNameInput.focus();
 });
 
-saveImageBtn.addEventListener('click', () => {
+saveImageBtn.addEventListener('click', async () => {
   if (!latestResult) {
     showError('请先完成一次测试');
     return;
   }
 
   try {
-    const canvas = buildResultImage(latestResult);
+    const canvas = await buildResultImage(latestResult);
     const namePart = safeFileName(latestResult.personName);
     downloadCanvas(canvas, `${namePart}-取向速断.png`);
   } catch (error) {

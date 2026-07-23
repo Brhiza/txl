@@ -239,6 +239,9 @@ button.ghost {
 .footer {
   margin-top: 1.5rem;
   text-align: center;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
 }
 
 .footer a {
@@ -297,5 +300,6 @@ button.ghost {
   font-weight: 700;
   line-height: 1.3;
 }
+
 
 
