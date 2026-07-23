@@ -48,6 +48,13 @@ function parseTimeIndex(value) {
   return timeIndex;
 }
 
+function parsePersonName(value) {
+  const name = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!name) throw new Error('请输入名字');
+  if (name.length > 20) throw new Error('名字太长了');
+  return name;
+}
+
 function parseGender(value) {
   if (value === 'male' || value === 'female') return value;
   throw new Error('请选择性别');
@@ -129,10 +136,11 @@ function buildFinale(gender, orientation, isDeepCloset) {
  * 角色两轴：active(1) / passive(0)
  * 深柜轴：内里有破格线索，但外在被压制、伪装或收着不说
  */
-export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue) {
+export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue, personNameValue) {
   const { year, month, day } = parseBirthDate(birthDateValue);
   const timeIndex = parseTimeIndex(timeIndexValue);
   const gender = parseGender(genderValue);
+  const personName = parsePersonName(personNameValue);
   const genderText = gender === 'male' ? '男' : '女';
   const timeLabel = TIME_OPTIONS.find((item) => item.value === timeIndex)?.label || `时辰 ${timeIndex}`;
 
@@ -498,7 +506,7 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue) 
     if (activeScore > passiveScore + 1) role = '1';
     else if (passiveScore > activeScore + 1) role = '0';
     else role = dayMasterYang ? '1' : '0';
-    roleText = role === '1' ? '1（偏主动）' : '0（偏受动）';
+    roleText = role;
   }
 
   const factReasons = [];
@@ -566,6 +574,7 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue) 
   const closetText = orientation === 'straight' ? '不适用' : isDeepCloset ? '是' : '不是';
 
   return {
+    personName,
     birthDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
     gender,
     genderText,
@@ -579,7 +588,7 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue) 
     closetText,
     pillarsText,
     dayMasterText,
-    detail: `${genderText} · ${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timeLabel} · 四柱 ${pillarsText} · 日主 ${dayMasterText}${strengthStatus ? `（${strengthStatus}）` : ''}${pattern ? ` · 格局 ${pattern}` : ''}`,
+    detail: `${personName} · ${genderText} · ${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timeLabel} · 四柱 ${pillarsText} · 日主 ${dayMasterText}${strengthStatus ? `（${strengthStatus}）` : ''}${pattern ? ` · 格局 ${pattern}` : ''}`,
     reasons,
     finale: buildFinale(gender, orientation, isDeepCloset),
     scores: {
@@ -601,3 +610,4 @@ export function analyzeOrientation(birthDateValue, timeIndexValue, genderValue) 
     },
   };
 }
+

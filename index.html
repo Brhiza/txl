@@ -14,6 +14,11 @@
 
       <form id="form" class="panel" autocomplete="off">
         <label class="field">
+          <span>名字</span>
+          <input id="personName" name="personName" type="text" maxlength="20" placeholder="怎么称呼" required />
+        </label>
+
+        <label class="field">
           <span>性别</span>
           <div class="segmented" role="radiogroup" aria-label="性别">
             <label class="segment">
@@ -55,6 +60,8 @@
       </form>
 
       <section id="result" class="result" hidden>
+        <p id="nameLine" class="name-line"></p>
+
         <div id="metrics" class="result-grid">
           <div class="result-card">
             <span class="label">取向</span>
@@ -81,7 +88,10 @@
 
         <p id="finale" class="finale" hidden></p>
 
-        <button id="again" type="button" class="ghost">再测一次</button>
+        <div class="result-actions">
+          <button id="saveImage" type="button" class="ghost">保存图片</button>
+          <button id="again" type="button" class="ghost">再测一次</button>
+        </div>
       </section>
 
       <p id="error" class="error" hidden></p>

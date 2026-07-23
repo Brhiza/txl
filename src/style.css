@@ -106,6 +106,7 @@ h1 {
 }
 
 input[type='date'],
+input[type='text'],
 select {
   width: 100%;
   min-height: 3rem;
@@ -224,32 +225,17 @@ button.ghost {
   letter-spacing: 0.01em;
 }
 
+.result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
 .error {
   margin-top: 1rem;
   color: var(--error);
 }
 
-@media (max-width: 520px) {
-  .app {
-    padding-top: 6vh;
-  }
-
-  h1 {
-    font-size: 1.7rem;
-  }
-
-  .result-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .value {
-    font-size: 1.3rem;
-  }
-
-  .finale {
-    font-size: 1.3rem;
-  }
-}
 .footer {
   margin-top: 1.5rem;
   text-align: center;
@@ -265,4 +251,34 @@ button.ghost {
 .footer a:hover {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .app {
+    padding-top: 6vh;
+  }
+
+  h1 {
+    font-size: 1.7rem;
+  }
+
+  .result-grid,
+  .result-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .value {
+    font-size: 1.3rem;
+  }
+
+  .finale {
+    font-size: 1.3rem;
+  }
+}
+
+.name-line {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.3;
 }
