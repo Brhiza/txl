@@ -3,7 +3,9 @@ import QRCode from 'qrcode';
 
 const form = document.getElementById('form');
 const personNameInput = document.getElementById('personName');
-const birthDateInput = document.getElementById('birthDate');
+const birthYearInput = document.getElementById('birthYear');
+const birthMonthInput = document.getElementById('birthMonth');
+const birthDayInput = document.getElementById('birthDay');
 const timeIndexInput = document.getElementById('timeIndex');
 const resultEl = document.getElementById('result');
 const metricsEl = document.getElementById('metrics');
@@ -20,6 +22,41 @@ const saveImageBtn = document.getElementById('saveImage');
 const copyLinkBtn = document.getElementById('copyLink');
 
 let latestResult = null;
+
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function composeBirthDate(year, month, day) {
+  const y = String(year || '').trim();
+  const m = String(month || '').trim();
+  const d = String(day || '').trim();
+  if (!y && !m && !d) return '';
+  if (!y || !m || !d) return '';
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+function splitBirthDate(value) {
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(value || '').trim());
+  if (!match) return { year: '', month: '', day: '' };
+  return {
+    year: match[1],
+    month: String(Number(match[2])),
+    day: String(Number(match[3])),
+  };
+}
+
+function getBirthDateFromForm() {
+  return composeBirthDate(birthYearInput.value, birthMonthInput.value, birthDayInput.value);
+}
+
+function setBirthDateToForm(value) {
+  const parts = splitBirthDate(value);
+  birthYearInput.value = parts.year;
+  birthMonthInput.value = parts.month;
+  birthDayInput.value = parts.day;
+}
+
 const SITE_URL = 'https://txl.sydf.cc';
 
 function getSelectedGender() {
@@ -79,7 +116,7 @@ function clearUrlState() {
 function fillFormFromState(state) {
   if (state.name) personNameInput.value = state.name;
   if (state.gender) setSelectedGender(state.gender);
-  if (state.birthDate) birthDateInput.value = state.birthDate;
+  if (state.birthDate) setBirthDateToForm(state.birthDate);
   if (state.timeIndex !== '') timeIndexInput.value = String(state.timeIndex);
 }
 
@@ -87,7 +124,9 @@ function clearForm() {
   form.reset();
   setSelectedGender('male');
   personNameInput.value = '';
-  birthDateInput.value = '';
+  birthYearInput.value = '';
+  birthMonthInput.value = '';
+  birthDayInput.value = '';
   timeIndexInput.value = '6';
 }
 
@@ -466,7 +505,7 @@ form.addEventListener('submit', (event) => {
     runAnalysis({
       name: personNameInput.value,
       gender: getSelectedGender(),
-      birthDate: birthDateInput.value,
+      birthDate: getBirthDateFromForm(),
       timeIndex: timeIndexInput.value,
     });
   } catch (error) {

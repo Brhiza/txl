@@ -32,10 +32,23 @@
           </div>
         </label>
 
-        <label class="field">
+        <div class="field">
           <span>出生日期</span>
-          <input id="birthDate" name="birthDate" type="date" required min="1900-01-01" max="2100-12-31" />
-        </label>
+          <div class="date-row" role="group" aria-label="出生日期">
+            <label class="date-part">
+              <span class="sr-only">年</span>
+              <input id="birthYear" name="birthYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="年" required />
+            </label>
+            <label class="date-part">
+              <span class="sr-only">月</span>
+              <input id="birthMonth" name="birthMonth" type="number" inputmode="numeric" min="1" max="12" placeholder="月" required />
+            </label>
+            <label class="date-part">
+              <span class="sr-only">日</span>
+              <input id="birthDay" name="birthDay" type="number" inputmode="numeric" min="1" max="31" placeholder="日" required />
+            </label>
+          </div>
+        </div>
 
         <label class="field">
           <span>出生时辰</span>
